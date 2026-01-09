@@ -44,18 +44,6 @@ variable "cidr_block" {
   default = "172.17.0.0/16"
 }
 
-variable "dns_hostnames" {
-  description = "boolean for private dns hostnames for vpc"
-  type = bool
-  default = true
-}
-
-variable "dns_support" {
-  description = "boolean for private dns for vpc"
-  type = bool
-  default = true
-}
-
 variable "public_subnet_cidr" {
   description = "public subnet cidr range"
   type = string
@@ -72,12 +60,6 @@ variable "availability_zone" {
     description = "provider region"
     type = string
     default = "ap-northeast-1a"
-}
-
-variable "nat_domain" {
-  description = "natgateway domain"
-  type = string
-  default = "vpc"
 }
 
 variable "rtb_public_cidr" {
