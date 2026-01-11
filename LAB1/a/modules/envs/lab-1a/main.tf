@@ -18,12 +18,16 @@ module "vpc" {
 
 
 # Security Module 
-# module "security" {
-#   source = "../../security"
+module "security" {
+  source = "../../security"
 
-#   env_prefix = local.name_prefix
-#   vpc_id     = module.vpc.vpc_id
+  env_prefix = local.name_prefix
+  vpc_id     = module.vpc.vpc_id
+  all_ips    = var.all_ips
+  any_port   = var.any_port
+  any_protocol = var.any_protocol
+  db_port = var.db_port
   
-#   # Pass the complex list variable down to the module
-#   ec2_ingress_rules = var.sg_rules_ec2
-# }
+  # Passes the ingress list variable down to the module
+  ec2_ingress_rules = var.sg_rules_ec2
+}

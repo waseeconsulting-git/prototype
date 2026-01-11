@@ -56,6 +56,24 @@ variable "my_ip" {
   description = "Your IP Address for SSH access (e.g., 1.2.3.4/32)"
   type        = string
 }
+variable "db_port" {
+  description = "Port for Database"
+  type        = number
+}
+variable "all_ips" {
+  description = "CIDR block for the whole internet"
+  type        = list(string)
+}
+
+variable "any_port" {
+  description = "Port number representing 'any' port"
+  type        = number
+}
+
+variable "any_protocol" {
+  description = "Protocol string representing 'any' protocol"
+  type        = string
+}
 
 # We define the list format here so we can pass it from tfvars
 variable "sg_rules_ec2" {
