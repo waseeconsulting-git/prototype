@@ -29,7 +29,7 @@ avail_zone = "ap-northeast-1a"
 
 rtb_public_cidr = "0.0.0.0/0"
 
-# ... Network/Region values ...
+
 
 my_ip = "0.0.0.0/32" # REPLACE THIS WITH REAL IP
 
@@ -47,7 +47,7 @@ sg_rules_ec2 = [
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["123.45.67.89/32"] # Or reference var.my_ip logic if constructed in locals
+    cidr_blocks = ["123.45.67.89/32"] #CHANGE FOR REAL IP - Or reference var.my_ip logic if constructed in locals
   },
 ]
 
