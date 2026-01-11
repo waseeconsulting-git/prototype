@@ -1,0 +1,53 @@
+# -----------------
+# TEST ENVIRONMENT (EXAMPLE)
+# -----------------
+# Copy this file to test.tfvars and update values as needed
+# cp environments/lab-1a.tfvars env/lab-1a.tfvars
+
+
+
+
+region = "ap-northeast-1"
+
+
+env_prefix = "lab-1a"
+
+
+project = "Armageddon"
+
+
+vpc_cidr_block = "172.17.0.0/16"
+
+
+public_subnet_cidr = "172.17.1.0/24"
+
+
+private_subnet_cidr = "172.17.11.0/24"
+
+avail_zone = "ap-northeast-1a"                                                
+
+
+rtb_public_cidr = "0.0.0.0/0"
+
+# ... Network/Region values ...
+
+my_ip = "0.0.0.0/32" # REPLACE THIS WITH REAL IP
+
+# The Dynamic Ingress Rule Set
+sg_rules_ec2 = [
+  {
+    description = "Allow HTTP from Anywhere"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  },
+  {
+    description = "Allow SSH from Admin Only"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["123.45.67.89/32"] # Or reference var.my_ip logic if constructed in locals
+  },
+]
+
