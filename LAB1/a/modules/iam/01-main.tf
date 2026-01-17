@@ -7,17 +7,30 @@ resource "aws_iam_role" "ec2_secrets_role" {
     Statement = [{
       Effect    = "Allow"
       Principal = { Service = "ec2.amazonaws.com" }
-      Action    = ["sts:AssumeRole",
-                   "ec2:DescribeSecurityGroups",
-                   "ec2:DescribeVpcs",
-                   "ec2:DescribeSubnets",
-                   "ec2:DescribeInstances",
-                   "ec2:DescribeRouteTables",
-                   "ec2:DescribeTags"],
+      Action    = "sts:AssumeRole"
     }]
   })
 }
 
+resource "aws_iam_role_policy" "ec2_policy" {
+  name = "ec2_policy"
+  role = aws_iam_role.ec2_secrets_role.id
+
+  # Terraform's "jsonencode" function converts a
+  # Terraform expression result to valid JSON syntax.
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "ec2:Describe*",
+        ]
+        Effect   = "Allow"
+        Resource = "*"
+      },
+    ]
+  })
+}
 # Custom Policy to read Secrets Manager secret
 resource "aws_iam_policy" "ec2_secrets_policy" {
   name        = "${var.env_prefix}-EC2ReadRDSSecret"
