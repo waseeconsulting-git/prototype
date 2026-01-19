@@ -10,6 +10,7 @@ resource "aws_secretsmanager_secret" "rds_secret" {
 
 resource "aws_secretsmanager_secret_rotation" "rds_rotation" {
   secret_id           = aws_secretsmanager_secret.rds_secret.id
+  rotation_lambda_arn = "arn:aws:lambda:ap-northeast-1:031857855861:function:rotation"
 
   rotation_rules {
     automatically_after_days = 30
