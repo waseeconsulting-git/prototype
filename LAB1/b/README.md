@@ -1,179 +1,152 @@
-# EC2 → RDS Integration Lab (Lab 1a)
+# Armageddon Project - LAB1B: Operations & Incident Response
 
-**Foundational Cloud Application Pattern using AWS and Terraform**
+## 📋 Project Overview
+**LAB1B** extends the foundational infrastructure from LAB1A with operational capabilities, observability, and incident response. It demonstrates how to operate, monitor, and recover an EC2-RDS production system using secure secret management and AWS observability tools.
 
----
+### Primary Objective
+Implement a **resilient system** capable of automatically detecting, diagnosing, and recovering from database failures without full redeployment, leveraging **Parameter Store** and **Secrets Manager** for secure configuration storage.
 
-## 📌 Purpose
-
-This lab teaches one of the **most common real-world AWS architectures**:
-
-- Compute on **Amazon EC2**
-- A managed relational database on **Amazon RDS (MySQL)**
-- Secure networking with **VPCs and Security Groups**
-- Credential management using **AWS Secrets Manager**
-- Infrastructure as Code using **Terraform**
-
-The application itself is intentionally minimal.
-
-> The goal is to understand **infrastructure design, security boundaries, IAM trust, and Terraform workflows** — not application logic.
-
-This pattern appears in:
-- Enterprise internal tools  
-- SaaS backends  
-- Legacy migrations  
-- Cloud security assessments  
-- AWS interviews  
-
----
-
-## 🧱 Architecture Overview
-<br>
-
-This lab builds a **2-tier AWS architecture**:
-
-- VPC with public and private subnets
-- EC2 instance in a public subnet (application tier)
-- RDS (MySQL) in a private subnet (database tier)
-- IAM role attached to EC2 for AWS API access
-- AWS Secrets Manager to store database credentials
-- Security Groups controlling network traffic
-- Terraform remote state stored in S3 with DynamoDB locking
-
-Infrastructure is defined using **reusable Terraform modules**, then assembled in an **environment configuration**.
-
----
-
-
-
-### Core Components
-
-- **EC2 Instance**
-  - Runs a simple application
-  - Lives in a public subnet
-  - Uses an IAM role (no static credentials)
-
-- **Amazon RDS (MySQL)**
-  - Lives in private subnets
-  - Not publicly accessible
-  - Allows inbound traffic only from the EC2 security group (TCP 3306)
-
-- **AWS Secrets Manager**
-  - Stores database credentials
-  - Accessed dynamically by EC2 using IAM
-
-- **IAM**
-  - EC2 assumes an IAM role
-  - Temporary credentials are provided automatically
-  - No access keys are stored on disk
-
----
-
-## 🔄 Logical Flow
-
-1. User sends an HTTP request to the EC2 instance
-2. EC2 retrieves database credentials from Secrets Manager
-3. EC2 initiates a MySQL connection to RDS
-4. Data is read or written
-5. Results are returned to the user
-
-> **Important:**  
-> EC2 initiates all connections.  
-> RDS never initiates traffic or API calls.
-
----
-
-## How Bootstrap Works
-
-Terraform state must exist **before** shared infrastructure can be managed safely.
-
-The `bootstrap/` directory is used **once** to create:
-
-- An S3 bucket for Terraform remote state
-- A DynamoDB table for state locking
-
-### Bootstrap Flow
-
-```bash
-cd bootstrap
-terraform init
-terraform apply
+## 🏗️ Architecture & Data Flow
+```
+[Internet] → [EC2 (Public Subnet)] → [RDS MySQL (Private Subnets)]
+                    ↑                         ↑
+            [Config Store]           [Secrets Manager]
+                    ↓                         ↓
+            [Parameter Store]        [IAM Role + Policies]
+                    ↳→→→→→→→[CloudWatch Monitoring]→→→[Alarms]→→→[Email/SNS]
 ```
 
-After this:
+## ⚙️ Terraform Modules Deployed
 
-- Terraform state is stored remotely
+| Module | AWS Services | Role in LAB1B |
+|--------|--------------|---------------|
+| **`network`** | VPC, Subnets, Route Tables, DB Subnet Group | Multi-AZ network isolation |
+| **`security`** | Security Groups (EC2 + RDS) | Specific firewall rules |
+| **`iam`** | IAM Role, Policies, Instance Profile | Least-privilege permissions with KMS |
+| **`ec2`** | EC2 Instance | Application server with IAM profile |
+| **`rds`** | RDS MySQL | Non-public Multi-AZ database |
+| **`cloudwatch`** | CloudWatch Alarms, Logs, SNS | Monitoring and alerting |
+| **`config-store`** | Systems Manager Parameter Store | Centralized configuration storage |
 
-- State locking is enforced
+## 🔐 Secret & Configuration Management
 
-- The bootstrap/ directory is never modified again
+### **Dual Secure Storage**
+1. **AWS Secrets Manager** (`lab-1b/rds/mysql`) : 
+   - Stores RDS credentials (username/password)
+   - Dynamic reading via Terraform `data` blocks
+   - JSON decoding in `locals.tf`
+
+2. **Systems Manager Parameter Store** (`/lab/db/*`) :
+   - Stores configuration (endpoint, port, dbname)
+   - Non-sensitive values for quick recovery
+   - Integration with `config-store` module
+
+### **Secure Access Flow**
+```hcl
+# Secure secret reading
+data "aws_secretsmanager_secret" "rds" { name = "lab-1b/rds/mysql" }
+data "aws_secretsmanager_secret_version" "rds" { secret_id = data.aws_secretsmanager_secret.rds.id }
+local.rds_secret = jsondecode(data.aws_secretsmanager_secret_version.rds.secret_string)
+```
+
+## 🚨 Monitoring & Incident Response
+
+### **Implemented Observability**
+- **CloudWatch Logs** : Centralized application logs
+- **CloudWatch Alarms** : DB connection failure detection
+- **SNS Notifications** : Email alerts for intervention
+- **Custom Metrics** : Connection error tracking
+
+### **Recovery Workflow**
+1. **Detection** : CloudWatch Alarms triggered
+2. **Diagnosis** : CloudWatch Logs consultation
+3. **Recovery** : Reading values from Parameter Store/Secrets Manager
+4. **Restoration** : Reconfiguration without Terraform redeployment
+
+## 🚀 Deployment
+
+### **Prerequisites**
+- Terraform ≥ 1.5.0
+- Pre-existing secret in Secrets Manager (`lab-1b/rds/mysql`)
+- KMS key for encryption
+
+### **Configuration**
+1. Copy the example file:
+   ```bash
+   cp lab-1b.auto.tfvars.example lab-1b.auto.tfvars
+   ```
+
+2. Modify variables in `lab-1b.auto.tfvars`:
+   ```hcl
+   region = "ap-northeast-1"
+   account_id = "YOUR_ACCOUNT_ID"
+   kms_key_arn = "YOUR_KMS_KEY_ARN"
+   alert_email = "your-email@example.com"
+   ```
+
+### **Execution**
+```bash
+# Initialization
+terraform init
+
+# Planning
+terraform plan -var-file="lab-1b.auto.tfvars"
+
+# Deployment
+terraform apply -var-file="lab-1b.auto.tfvars"
+```
+
+## ✅ Required Verifications (LAB1B)
+
+### **Mandatory CLI Checks**
+```bash
+# 1. Parameter Store
+aws ssm get-parameters --names /lab/db/endpoint /lab/db/port /lab/db/name --with-decryption
+
+# 2. Secrets Manager
+aws secretsmanager get-secret-value --secret-id lab-1b/rds/mysql
+
+# 3. EC2 Access
+# Via SSM Session Manager from the instance
+
+# 4. CloudWatch Logs
+aws logs describe-log-groups --log-group-name-prefix /aws/ec2/armageddon-lab-1b
+
+# 5. Alarms
+aws cloudwatch describe-alarms --alarm-name-prefix armageddon-db-connection
+```
+
+### **Test Scenarios**
+1. **Simulate DB failure** : Stop RDS or modify credentials
+2. **Verify alerts** : Confirm SNS/email notification
+3. **Diagnose via logs** : Identify error in CloudWatch
+4. **Recover** : Use Parameter Store/Secrets Manager for reconfiguration
+
+## 📁 File Structure
+
+| File | Description |
+|------|-------------|
+| **`01-main.tf`** | Main module deployment |
+| **`02-locals.tf`** | Local variables and secret decoding |
+| **`03-variables.tf`** | Input variables with validation |
+| **`04-outputs.tf`** | Terraform outputs |
+| **`05-backend.tf`** | S3 backend configuration (commented) |
+| **`lab-1b.auto.tfvars.example`** | Configuration example |
+
+## 🎯 Demonstrated Skills
+
+- **Secret Management** : Secure usage of Secrets Manager and Parameter Store
+- **Observability** : Monitoring implementation with CloudWatch
+- **Resilience** : Design for recovery without redeployment
+- **Professional IaC** : Modular and maintainable structure
+- **Security** : IAM least-privilege and KMS encryption
+
+## 🔗 Integration with LAB1A and LAB1C
+
+- **LAB1A** : Basic EC2 + RDS infrastructure
+- **LAB1B** : ⭐ **Operations & Incident Response** (this lab)
+- **LAB1C** : Advanced features (ALB, WAF, VPC Endpoints, Bedrock Automation)
 
 ---
 
-## 📁 Repository Structure
-
-### VS Code View
-
-<div align="center">
-  <img src="Images/Repo-Structure.png" alt="image1" width="800"/>
-</div>
-
----
-
-## 🌍 Each Environment
-
-Each environment:
-
-- References reusable modules from `modules/`
-- Defines environment-specific variables
-- Uses the remote backend created during the bootstrap process
-
----
-
-## ✅ What This Enables
-
-- Multiple environments (lab, dev, prod)
-- Shared Terraform state across team members
-- Safe and consistent collaboration
-
----
-
-## 🔍 CI / Validation (No Auto-Deploy)
-
-This repository uses **GitHub Actions** to automatically:
-
-- Format Terraform code using `terraform fmt`
-- Initialize Terraform **without a backend**
-- Validate Terraform configuration syntax
-
-<br>
-
-“The CI/CD pipeline checks Terraform quality and correctness. It does not deploy infrastructure. All real infrastructure changes are applied manually using a shared backend.”
----
-
-## 🚫 No Automatic Deployment
-
-Infrastructure is **not deployed automatically**.
-
-All real `terraform apply` actions are:
-
-- Performed manually
-- Run locally
-- Executed against a shared remote backend (S3 + DynamoDB)
-
-This ensures **safety, transparency, and learning clarity**.
-
----
-
-## 👩‍💻 How The Group Contributes
-
-Students are expected to:
-
-- Fork/clone the repository
-- Create feature branches
-- Make pushes to those feature branches 
-- Submit Pull Requests
-- Pass Terraform validation checks
-- Receive review feedback
-
-This simulates **real-world infrastructure workflows** without risking AWS resources.
+**Tags**: `Terraform` `AWS` `Incident-Response` `Secrets-Manager` `Parameter-Store` `CloudWatch` `RDS` `EC2` `Operations` `SRE`
