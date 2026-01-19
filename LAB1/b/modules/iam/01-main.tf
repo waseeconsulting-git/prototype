@@ -27,7 +27,10 @@ resource "aws_iam_role_policy" "ec2_policy" {
           "logs:PutMetricFilter",
           "logs:DescribeLogGroups",
           "SNS:ListTopics",
-          "cloudwatch:PutMetricAlarm"
+          "cloudwatch:PutMetricAlarm",
+          "cloudwatch:DescribeAlarms",
+          "rds:DescribeDBInstances",
+          "cloudwatch:PutMetricData"
           #"logs:CloudWatchLogsFullAccess"
         ]
         Effect   = "Allow"
@@ -95,8 +98,8 @@ resource "aws_iam_policy" "ssm_read" {
           "ssm:GetParametersByPath"
         ]
         Resource = [
-          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/lab/db/*",
-          "arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/lab/*"
+          "arn:aws:ssm:${var.region}:${var.account_id}:parameter/lab/db/*",
+          "arn:aws:ssm:${var.region}:${var.account_id}:parameter/lab/*"
         ]
       }
     ]
@@ -120,8 +123,8 @@ resource "aws_iam_policy" "cloudwatch_logs" {
           "logs:DescribeLogStreams"
         ]
         Resource = [
-          "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/ec2/lab-rds-app:*",
-          "arn:aws:logs:${var.region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/ec2/lab-rds-app"
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/ec2/lab-rds-app:*",
+          "arn:aws:logs:${var.region}:${var.account_id}:log-group:/aws/ec2/lab-rds-app"
         ]
       }
     ]

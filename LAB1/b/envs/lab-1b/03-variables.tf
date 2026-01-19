@@ -26,7 +26,7 @@ variable "env_prefix" {
 
   validation {
     condition = contains(["lab-1a", "lab-1b", "lab-1c"], var.env_prefix)
-      error_message = "The environment must be one of: lab-1a, lab-1b or lab-1c"
+      error_message = "The environment must be one of: lab-1b, lab-1b or lab-1c"
   }
 }
 

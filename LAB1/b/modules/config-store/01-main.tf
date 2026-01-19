@@ -27,6 +27,9 @@ resource "aws_ssm_parameter" "db_name" {
 resource "aws_secretsmanager_secret" "db_credentials" {
   name        = "lab/rds/mysql"
   description = "Database credentials for lab RDS instance"
+
+  recovery_window_in_days = 0
+  force_overwrite_replica_secret = true
   
   tags = merge(var.tags, {
     Rotation = "manual"

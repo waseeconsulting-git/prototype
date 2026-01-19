@@ -67,7 +67,7 @@ module "rds" {
 # This does NOT create the secret
 # This makes a live AWS API call during plan/apply
 data "aws_secretsmanager_secret" "rds" {
-  name = "lab-1a/rds/mysql"
+  name = "lab-1b/rds/mysql"
 }
 
 #
@@ -102,11 +102,11 @@ module "cloudwatch" {
 module "config_store" {
   source = "../../modules/config-store"
   
-  db_endpoint = module.rds.endpoint
-  db_port     = module.rds.port
-  db_name     = module.rds.db_name
-  db_username = module.rds.username
-  db_password = module.rds.password
+  db_endpoint = local.rds_secret.host
+  db_port     = local.rds_secret.port
+  db_name     = local.rds_secret.dbname
+  db_username = local.rds_secret.username
+  db_password = local.rds_secret.password
   
   tags = local.tags
 }
