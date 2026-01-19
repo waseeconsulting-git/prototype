@@ -1,179 +1,235 @@
-# EC2 → RDS Integration Lab (Lab 1a)
+# Armageddon Project - LAB1A: Foundational Infrastructure with Secure Secrets Management
 
-**Foundational Cloud Application Pattern using AWS and Terraform**
+## 📋 Project Overview
+**LAB1A** establishes the foundational cloud infrastructure for a secure, scalable web application using Infrastructure as Code (IaC) principles. This lab demonstrates secure deployment patterns with Terraform, implementing a modular architecture that separates compute and data layers while maintaining security best practices.
 
----
+### Primary Objective
+Deploy a **secure web application (EC2)** that connects to a **managed database (RDS MySQL)** using credentials retrieved from **AWS Secrets Manager** instead of hardcoded values, establishing a production-ready IaC foundation.
 
-## 📌 Purpose
+## 🏗️ Architecture & Security Flow
+```
+[Internet]
+    ↓ (HTTP/SSH via Security Groups)
+[EC2 Instance (Public Subnet)]
+    ↓ (MySQL 3306 - Security Group Rules)
+[RDS MySQL (Multi-AZ, Private Subnets)]
+    ↑
+[AWS Secrets Manager] ←(IAM Role/Policies)← [EC2 Instance Profile]
+```
+**Core Security Principle**: No credentials in Terraform code; all secrets dynamically retrieved from AWS Secrets Manager at deployment time.
 
-This lab teaches one of the **most common real-world AWS architectures**:
+## ⚙️ Terraform Modules Deployed
 
-- Compute on **Amazon EC2**
-- A managed relational database on **Amazon RDS (MySQL)**
-- Secure networking with **VPCs and Security Groups**
-- Credential management using **AWS Secrets Manager**
-- Infrastructure as Code using **Terraform**
+| Module | AWS Services | Purpose |
+|--------|--------------|---------|
+| **`network`** | VPC, Public/Private Subnets (2 AZs), Route Tables, Internet Gateway, DB Subnet Group | Network isolation with public/private separation |
+| **`security`** | Security Groups for EC2 (HTTP/SSH inbound) and RDS (MySQL from EC2 only) | Least-privilege firewall rules |
+| **`iam`** | IAM Role, Policies, Instance Profile with KMS decryption permissions | Secure access to Secrets Manager |
+| **`ec2`** | EC2 Instance (t3.micro) with attached IAM profile | Application server in public subnet |
+| **`rds`** | RDS MySQL (db.t3.micro, Multi-AZ enabled) | Managed database in private subnets |
 
-The application itself is intentionally minimal.
+## 🔐 Secure Secrets Management Implementation
 
-> The goal is to understand **infrastructure design, security boundaries, IAM trust, and Terraform workflows** — not application logic.
+### **Dynamic Secret Retrieval**
+```hcl
+# 1. Reference existing secret (does NOT create it)
+data "aws_secretsmanager_secret" "rds" {
+  name = "lab-1a/rds/mysql"
+}
 
-This pattern appears in:
-- Enterprise internal tools  
-- SaaS backends  
-- Legacy migrations  
-- Cloud security assessments  
-- AWS interviews  
+# 2. Get current secret version
+data "aws_secretsmanager_secret_version" "rds" {
+  secret_id = data.aws_secretsmanager_secret.rds.id
+}
 
----
+# 3. Decode JSON into Terraform object
+locals {
+  rds_secret = jsondecode(data.aws_secretsmanager_secret_version.rds.secret_string)
+}
 
-## 🧱 Architecture Overview
-<br>
-
-This lab builds a **2-tier AWS architecture**:
-
-- VPC with public and private subnets
-- EC2 instance in a public subnet (application tier)
-- RDS (MySQL) in a private subnet (database tier)
-- IAM role attached to EC2 for AWS API access
-- AWS Secrets Manager to store database credentials
-- Security Groups controlling network traffic
-- Terraform remote state stored in S3 with DynamoDB locking
-
-Infrastructure is defined using **reusable Terraform modules**, then assembled in an **environment configuration**.
-
----
-
-
-
-### Core Components
-
-- **EC2 Instance**
-  - Runs a simple application
-  - Lives in a public subnet
-  - Uses an IAM role (no static credentials)
-
-- **Amazon RDS (MySQL)**
-  - Lives in private subnets
-  - Not publicly accessible
-  - Allows inbound traffic only from the EC2 security group (TCP 3306)
-
-- **AWS Secrets Manager**
-  - Stores database credentials
-  - Accessed dynamically by EC2 using IAM
-
-- **IAM**
-  - EC2 assumes an IAM role
-  - Temporary credentials are provided automatically
-  - No access keys are stored on disk
-
----
-
-## 🔄 Logical Flow
-
-1. User sends an HTTP request to the EC2 instance
-2. EC2 retrieves database credentials from Secrets Manager
-3. EC2 initiates a MySQL connection to RDS
-4. Data is read or written
-5. Results are returned to the user
-
-> **Important:**  
-> EC2 initiates all connections.  
-> RDS never initiates traffic or API calls.
-
----
-
-## How Bootstrap Works
-
-Terraform state must exist **before** shared infrastructure can be managed safely.
-
-The `bootstrap/` directory is used **once** to create:
-
-- An S3 bucket for Terraform remote state
-- A DynamoDB table for state locking
-
-### Bootstrap Flow
-
-```bash
-cd bootstrap
-terraform init
-terraform apply
+# 4. Use in RDS module (no hardcoded credentials)
+module "rds" {
+  db_username = local.rds_secret.username
+  db_password = local.rds_secret.password
+  db_name     = local.rds_secret.dbname
+}
 ```
 
-After this:
+### **IAM Security Configuration**
+- **EC2 IAM Role**: `armageddon-lab-1a-ec2-secrets-role`
+- **Attached Policies**: 
+  - Custom policy: `armageddon-lab-1a-EC2ReadRDSSecret`
+  - Permissions: `secretsmanager:GetSecretValue`, `secretsmanager:DescribeSecret`
+  - KMS: `kms:Decrypt` for secret encryption key
+- **Resource Scoping**: Restricted to specific secret ARN
 
-- Terraform state is stored remotely
+## 🛡️ Security Validation (From Provided Files)
 
-- State locking is enforced
+### **Verified Security Groups**
+```json
+EC2 Security Group (sg-0e6822d557178b340):
+- Inbound: HTTP (80) from 0.0.0.0/0, SSH (22) from 0.0.0.0/0
+- Outbound: All traffic to 0.0.0.0/0
+- Tags: Name = "sg-ec2-armageddon-lab-1a"
 
-- The bootstrap/ directory is never modified again
+RDS Security Group (sg-0a917dbff4a70ffdd):
+- Inbound: MySQL (3306) ONLY from EC2 Security Group
+- Outbound: All traffic to 0.0.0.0/0
+- Tags: Name = "armageddon-lab-1a-rds-sg"
+```
+
+### **Verified RDS Configuration**
+- **Instance**: `lab-mysql` (MySQL 8.0.43, db.t3.micro)
+- **Multi-AZ**: Enabled (Primary: ap-northeast-1c, Secondary: ap-northeast-1a)
+- **Public Access**: `false` (properly isolated in private subnets)
+- **Subnets**: Private subnets across 2 AZs
+- **Security**: Single VPC security group with EC2-only access
+
+### **Verified Secrets Manager**
+- **Secret**: `lab-1a/rds/mysql` (rotation enabled)
+- **Structure**: JSON with `username`, `password`, `host`, `port`, `dbname`
+- **Rotation**: Configured with Lambda function `rotation`
+
+## 🚀 Deployment Process
+
+### **Prerequisites**
+- Pre-existing secret in AWS Secrets Manager (`lab-1a/rds/mysql`)
+- KMS key for encryption
+- Terraform ≥ 1.5.0
+
+### **Configuration**
+1. Copy example variables file:
+   ```bash
+   cp lab-1a.auto.tfvars.example lab-1a.auto.tfvars
+   ```
+
+2. Update `lab-1a.auto.tfvars`:
+   ```hcl
+   region = "ap-northeast-1"
+   account_id = "031857855861"
+   kms_key_arn = "arn:aws:kms:ap-northeast-1:031857855861:key/0987dcba-09fe-87dc-65ba-ab0987654321"
+   # Other variables as needed
+   ```
+
+### **Execution**
+```bash
+# Initialize Terraform
+terraform init
+
+# Review deployment plan
+terraform plan -var-file="lab-1a.auto.tfvars"
+
+# Apply infrastructure
+terraform apply -var-file="lab-1a.auto.tfvars"
+```
+
+## ✅ Infrastructure Validation Commands
+
+### **Core AWS CLI Verification**
+```bash
+# 1. Verify Security Groups
+aws ec2 describe-security-groups \
+  --group-ids sg-0e6822d557178b340 sg-0a917dbff4a70ffdd \
+  --region ap-northeast-1
+
+# 2. Verify RDS Configuration
+aws rds describe-db-instances \
+  --db-instance-identifier lab-mysql \
+  --region ap-northeast-1 \
+  --query 'DBInstances[0].{PubliclyAccessible:PubliclyAccessible,MultiAZ:MultiAZ,VpcSecurityGroups:VpcSecurityGroups}'
+
+# 3. Verify Secrets Manager
+aws secretsmanager describe-secret \
+  --secret-id lab-1a/rds/mysql \
+  --region ap-northeast-1
+
+# 4. Verify IAM Role Configuration
+aws iam list-attached-role-policies \
+  --role-name armageddon-lab-1a-ec2-secrets-role
+
+# 5. Verify EC2-IAM Integration
+aws ec2 describe-instances \
+  --instance-ids i-038c0094823165402 \
+  --query 'Reservations[0].Instances[0].IamInstanceProfile.Arn'
+```
+
+### **Network Verification**
+```bash
+# Verify RDS is NOT publicly accessible
+aws rds describe-db-instances \
+  --db-instance-identifier lab-mysql \
+  --query 'DBInstances[0].PubliclyAccessible' \
+  --output text
+# Should return: False
+
+# Verify RDS subnet placement
+aws rds describe-db-subnet-groups \
+  --db-subnet-group-name armageddon-lab-1a-db-subnet-group \
+  --query 'DBSubnetGroups[0].Subnets[].SubnetIdentifier'
+```
+
+## 📁 Project Structure
+
+| File | Purpose |
+|------|---------|
+| **`01-main.tf`** | Main module orchestration and secret data sources |
+| **`02-locals.tf`** | Local variables and secret JSON decoding |
+| **`03-variables.tf`** | Input variables with environment validation |
+| **`04-outputs.tf`** | Terraform outputs (VPC, subnet IDs, RDS endpoint) |
+| **`05-backend.tf`** | S3 backend configuration (commented) |
+| **`lab-1a.auto.tfvars.example`** | Example configuration values |
+| **`Armageddon-lab1a-Van.txt`** | Comprehensive validation commands and outputs |
+
+## 🔄 Secrets Rotation Setup
+
+### **Separate Rotation Infrastructure**
+```hcl
+# In separate Terraform configuration
+resource "aws_secretsmanager_secret_rotation" "rds_rotation" {
+  secret_id           = aws_secretsmanager_secret.rds_secret.id
+  rotation_lambda_arn = "arn:aws:lambda:ap-northeast-1:031857855861:function:rotation"
+  
+  rotation_rules {
+    automatically_after_days = 30
+  }
+}
+```
+
+### **Rotation Verification**
+```bash
+# Confirm rotation is enabled
+aws secretsmanager describe-secret \
+  --secret-id lab-1a/rds/mysql \
+  --query 'RotationEnabled'
+# Should return: true
+```
+
+## 🎯 Key Design Principles Demonstrated
+
+1. **Security First**: No hardcoded credentials; all secrets from Secrets Manager
+2. **Least Privilege**: IAM roles scoped to specific secrets; security groups with minimal rules
+3. **High Availability**: Multi-AZ RDS deployment; subnets across multiple AZs
+4. **Network Isolation**: Public EC2, private RDS, security group rules for controlled access
+5. **Infrastructure as Code**: Modular Terraform design for maintainability
+6. **Operational Excellence**: Comprehensive validation commands for all components
+
+## 🏆 Success Metrics
+
+- ✅ EC2 instance running with correct IAM profile
+- ✅ RDS MySQL instance in private subnets (Multi-AZ enabled)
+- ✅ Security groups allowing only necessary traffic
+- ✅ Secrets Manager integration working (EC2 can read secrets)
+- ✅ No credentials in Terraform state or code
+- ✅ RDS not publicly accessible
+- ✅ Secrets rotation configured
 
 ---
 
-## 📁 Repository Structure
+**Tags**: `Terraform` `AWS` `Secrets-Manager` `RDS` `EC2` `Security-Groups` `IAM` `Infrastructure-as-Code` `Multi-AZ` `MySQL`
 
-### VS Code View
-
-<div align="center">
-  <img src="Images/Repo-Structure.png" alt="image1" width="800"/>
-</div>
-
----
-
-## 🌍 Each Environment
-
-Each environment:
-
-- References reusable modules from `modules/`
-- Defines environment-specific variables
-- Uses the remote backend created during the bootstrap process
-
----
-
-## ✅ What This Enables
-
-- Multiple environments (lab, dev, prod)
-- Shared Terraform state across team members
-- Safe and consistent collaboration
-
----
-
-## 🔍 CI / Validation (No Auto-Deploy)
-
-This repository uses **GitHub Actions** to automatically:
-
-- Format Terraform code using `terraform fmt`
-- Initialize Terraform **without a backend**
-- Validate Terraform configuration syntax
-
-<br>
-
-“The CI/CD pipeline checks Terraform quality and correctness. It does not deploy infrastructure. All real infrastructure changes are applied manually using a shared backend.”
----
-
-## 🚫 No Automatic Deployment
-
-Infrastructure is **not deployed automatically**.
-
-All real `terraform apply` actions are:
-
-- Performed manually
-- Run locally
-- Executed against a shared remote backend (S3 + DynamoDB)
-
-This ensures **safety, transparency, and learning clarity**.
-
----
-
-## 👩‍💻 How The Group Contributes
-
-Students are expected to:
-
-- Fork/clone the repository
-- Create feature branches
-- Make pushes to those feature branches 
-- Submit Pull Requests
-- Pass Terraform validation checks
-- Receive review feedback
-
-This simulates **real-world infrastructure workflows** without risking AWS resources.
+## 🔗 Next Steps (LAB1B)
+This foundation enables **LAB1B** which adds operational capabilities:
+- Parameter Store for configuration
+- CloudWatch logging and alarms
+- Incident response procedures
+- Automated recovery workflows
