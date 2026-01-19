@@ -8,14 +8,12 @@ module "vpc" {
   source = "../../modules/network"
 
   vpc_cidr_block  = var.vpc_cidr_block
-  public_subnet_cidr  = var.public_subnet_cidr
+  private_subnet_cidr_3  = var.private_subnet_cidr_3
   private_subnet_cidr_1 = var.private_subnet_cidr_1
   private_subnet_cidr_2 = var.private_subnet_cidr_2
   env_prefix      = local.name_prefix
   avail_zone_1 = var.avail_zone_1
   avail_zone_2 = var.avail_zone_2
-  rtb_public_cidr = var.rtb_public_cidr  
-
 }
 ######################################################################################
 
@@ -32,7 +30,7 @@ module "security" {
 module "ec2" {
   source             = "../../modules/ec2"
   env_prefix         = local.name_prefix
-  subnet_id          = module.vpc.public_subnet_id
+  subnet_id          = element(module.vpc.private_subnet_ids, 0)  # first private subnet
   instance_type      = var.instance_type
   security_group_ids  = [module.security.ec2_sg_id]
   instance_profile_name  = module.iam.instance_profile_name
@@ -109,4 +107,23 @@ module "config_store" {
   db_password = local.rds_secret.password
   
   tags = local.tags
+}
+######################################################################################
+
+module "vpc_endpoints" {
+  source = "../../modules/vpc-endpoints"
+
+  vpc_id              = module.vpc.vpc_id
+  vpc_endpoint_sg_id  = module.security.ec2_sg_id
+  private_subnet_ids  = module.vpc.private_subnet_ids   # <-- changed from module.network
+  route_table_ids     = module.vpc.private_route_table_ids # <-- changed to plural list
+  region              = var.region
+  prefix              = var.env_prefix
+  enable_kms_endpoint = var.enable_kms_endpoint
+  
+  # Optional: Custom endpoint policy
+  # endpoint_policy = jsonencode({
+  #   Version = "2012-10-17"
+  #   Statement = [...]
+  # })
 }

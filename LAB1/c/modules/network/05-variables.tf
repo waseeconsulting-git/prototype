@@ -21,17 +21,17 @@ variable "env_prefix" {
   description = "Environment prefix for naming VPC and subnets"
 }
 ############################################################
-variable "public_subnet_cidr" {
-  description = "public subnet cidr range"
-  type = string
-}
-############################################################
 variable "private_subnet_cidr_1" {
   description = "private subnet cidr range"
   type = string
 }
 
 variable "private_subnet_cidr_2" {
+  description = "private subnet cidr range"
+  type = string
+}
+
+variable "private_subnet_cidr_3" {
   description = "private subnet cidr range"
   type = string
 }
@@ -46,8 +46,9 @@ variable "avail_zone_2" {
     type = string
 }
 ############################################################
-variable "rtb_public_cidr" {
-  description = "route table public cidr"
-  type = string
-}
+#variable "rtb_public_cidr" {
+# description = "route table public cidr"
+#  type = string
+#}
 ############################################################
+

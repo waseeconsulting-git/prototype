@@ -46,7 +46,7 @@ variable "avail_zone_2" {
     type = string
 }
 
-variable "public_subnet_cidr" {
+variable "private_subnet_cidr_3" {
   description = "public subnet cidr range"
   type = string
 }
@@ -62,10 +62,10 @@ variable "private_subnet_cidr_2" {
 }
 
 
-variable "rtb_public_cidr" {
-  description = "route table public cidr"
-  type = string
-}
+#variable "rtb_public_cidr" {
+#  description = "route table public cidr"
+#  type = string
+#}
 
 variable "instance_type" {
   type        = string
@@ -99,4 +99,10 @@ variable "alert_email" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+variable "enable_kms_endpoint" {
+  description = "Enable KMS VPC endpoint"
+  type        = bool
+  default     = false
 }
