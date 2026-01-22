@@ -253,5 +253,5 @@ rm -f terraform.tfstate*
 
 **Lab Status**: ✅ COMPLETED  
 **Infrastructure**: Production-ready  
-**Key Achievement**: Implemented enterprise patterns with proper security, monitoring, and automation
-** Author **: Vany FERRAND
+**Key Achievement**: Implemented enterprise patterns with proper security, monitoring, and automation  
+**Author**: Vany FERRAND
