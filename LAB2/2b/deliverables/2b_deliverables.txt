@@ -39,7 +39,7 @@ date: Mon, 09 Feb 2026 16:44:15 GMT
 cache-control: public, max-age=86400, immutable
 server: Werkzeug/3.1.5 Python/3.9.25
 x-app-generated: true
-x-cache: Miss from cloudfront
+x-cache: Hit from cloudfront
 via: 1.1 6db9ef0587d963a7afc68c7c316285d4.cloudfront.net (CloudFront)
 x-amz-cf-pop: NRT12-P4
 x-amz-cf-id: 1TfkF9nBmYW-RVfY7FtwmzpSDGwuv-km09YlyEu9pw66WnZJq8_Swg==
