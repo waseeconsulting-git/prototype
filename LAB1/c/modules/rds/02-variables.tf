@@ -1,13 +1,13 @@
-variable "db_name" {
+variable "dbname" {
   description = "Initial database name"
   type        = string
 }
-variable "db_username" {
+variable "username" {
   type      = string
   sensitive = true
 }
 
-variable "db_password" {
+variable "password" {
   type      = string
   sensitive = true
 }

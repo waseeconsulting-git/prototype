@@ -6,7 +6,7 @@ variable "region" {
 variable "env_prefix" {
   description = "project environment"
   type = string
-  default = "lab-1b"
+  #default = "lab-1a"
 
   validation {
     condition = contains(["lab-1a", "lab-1b", "lab-1c"], var.env_prefix)
@@ -30,12 +30,12 @@ variable "port" {
   type = number
 }
 
-variable "address" {
-  description = "The hostname of the RDS instance"
-  type = string
-}
+#variable "address" {
+#description = "The hostname of the RDS instance"
+#  type = string
+#}
 
 variable "dbname" {
-  description = "Initial database name"
+description = "Initial database name"
   type        = string
 }

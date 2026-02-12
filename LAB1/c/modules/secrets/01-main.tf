@@ -6,6 +6,10 @@ resource "aws_secretsmanager_secret" "rds_secret" {
   name                    = "${var.env_prefix}/rds/mysql"
   recovery_window_in_days = 0
   force_overwrite_replica_secret = true
+
+  lifecycle {
+    prevent_destroy = true   # <-- prevents accidental deletion
+  }
 }
 
 resource "aws_secretsmanager_secret_rotation" "rds_rotation" {
@@ -15,6 +19,8 @@ resource "aws_secretsmanager_secret_rotation" "rds_rotation" {
   rotation_rules {
     automatically_after_days = 30
   }
+
+  depends_on = [aws_secretsmanager_secret.rds_secret]
 }
 
 resource "aws_secretsmanager_secret_version" "rds_secret_version" {
@@ -23,9 +29,10 @@ resource "aws_secretsmanager_secret_version" "rds_secret_version" {
   secret_string = jsonencode({
     username = var.username
     password = var.password
-    host = var.address
-    port = var.port
-    db_name = var.dbname
+#    host     = var.address
+    port     = var.port
+    db_name  = var.dbname
   })
-}
 
+  depends_on = [aws_secretsmanager_secret.rds_secret]
+}

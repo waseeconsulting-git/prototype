@@ -10,7 +10,7 @@ output "vpc_id" {
 # Private Subnets
 ############################
 output "private_subnet_ids" {
-  description = "List of private subnet IDs"
+  description = "List of all private subnet IDs"
   value = [
     aws_subnet.private_1a.id,
     aws_subnet.private_2a.id,
@@ -18,16 +18,28 @@ output "private_subnet_ids" {
   ]
 }
 
+# Optional: single private subnet (first one) if a module requires only one subnet
+output "first_private_subnet_id" {
+  description = "The first private subnet ID"
+  value       = aws_subnet.private_1a.id
+}
+
 ############################
 # Private Route Tables
 ############################
 output "private_route_table_ids" {
-  description = "List of private route table IDs"
+  description = "List of all private route table IDs"
   value = [
     aws_route_table.private_1a.id,
     aws_route_table.private_2a.id,
     aws_route_table.private_1c.id
   ]
+}
+
+# Optional: single route table (first one) if a module requires only one
+output "first_private_route_table_id" {
+  description = "The first private route table ID"
+  value       = aws_route_table.private_1a.id
 }
 
 ############################

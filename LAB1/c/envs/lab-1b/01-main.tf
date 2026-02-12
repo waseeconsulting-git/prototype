@@ -29,6 +29,7 @@ module "security" {
 ######################################################################################
 module "ec2" {
   source             = "../../modules/ec2"
+  region             = var.region
   env_prefix         = local.name_prefix
   subnet_id          = element(module.vpc.private_subnet_ids, 0)  # first private subnet
   instance_type      = var.instance_type
@@ -43,19 +44,38 @@ module "iam" {
   account_id = var.account_id
   env_prefix = local.name_prefix
   kms_key_arn = var.kms_key_arn
+
+
+
+  
+  # ⭐ CRITICAL: Pass secret ARN from config store
+  secret_arn = module.config_store.secret_arn
+  
+  # ⭐ CRITICAL: Pass log group name
+  log_group_name = "/aws/ec2/${local.name_prefix}-rds-app"
+
+  
+  # Tags
+  tags = local.tags
+  
+  depends_on = [module.config_store]  # Wait for config store
 }
+
+
 
 ######################################################################################
 module "rds" {
   source = "../../modules/rds"
 
 # Credentials dynamically pulled from Secrets Manager
-  db_username            = local.rds_secret.username
-  db_password            = local.rds_secret.password
-  db_name                = local.rds_secret.dbname
+  username                = local.rds_secret.username
+  password                = local.rds_secret.password
+  #dbname                  = local.rds_secret.dbname
+  dbname                  = var.dbname
 
-  db_subnet_group_name   = module.vpc.db_subnet_group_name
-  rds_security_group_id  = module.security.rds_sg_id
+  #db_host                = local.rds_secret.host 
+  db_subnet_group_name    = module.vpc.db_subnet_group_name
+  rds_security_group_id   = module.security.rds_sg_id
 }
 ######################################################################################
 # Reference the existing RDS secret
@@ -65,7 +85,7 @@ module "rds" {
 # This does NOT create the secret
 # This makes a live AWS API call during plan/apply
 data "aws_secretsmanager_secret" "rds" {
-  name = "lab-1b/rds/mysql"
+  name = "lab-1a/rds/mysql"
 }
 
 #
@@ -97,17 +117,37 @@ module "cloudwatch" {
 
 ######################################################################################
 
+
+module "secrets" {
+  source      = "../../modules/secrets"
+  region      = var.region
+  env_prefix  = var.env_prefix
+  username = var.username
+  password = var.password
+  #address  = var.address
+  port     = var.port
+  dbname     = var.dbname
+}
+
+########################################################################################
+
 module "config_store" {
   source = "../../modules/config-store"
-  
-  db_endpoint = local.rds_secret.host
-  db_port     = local.rds_secret.port
-  db_name     = local.rds_secret.dbname
-  db_username = local.rds_secret.username
-  db_password = local.rds_secret.password
-  
+
+  port     = local.rds_secret.port
+  dbname   = local.rds_secret.dbname
+  username = local.rds_secret.username
+  password = local.rds_secret.password
+
+  secret_arn  = var.existing_secret_arn
+  secret_name = var.existing_secret_name
+
+
   tags = local.tags
 }
+
+
+
 ######################################################################################
 
 module "vpc_endpoints" {
@@ -127,3 +167,4 @@ module "vpc_endpoints" {
   #   Statement = [...]
   # })
 }
+###########################################################################################

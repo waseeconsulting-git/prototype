@@ -1,35 +1,47 @@
 output "vpc_id" {
-  value = module.vpc.vpc_id
+  description = "ID of the VPC"
+  value       = module.vpc.vpc_id
 }
 
-output "public_subnet_id" {
-  value = module.vpc.public_subnet_id
+##########################
+# Private subnets
+##########################
+output "private_subnet_ids" {
+  description = "List of private subnet IDs from the network module"
+  value       = module.vpc.private_subnet_ids
 }
 
-output "private_subnet_id" {
-  value = module.vpc.private_subnet_id
+##########################
+# Private route tables
+##########################
+output "private_route_table_ids" {
+  description = "List of private route table IDs from the network module"
+  value       = module.vpc.private_route_table_ids
 }
 
-output "public_route_table_id" {
-  value = module.vpc.public_route_table_id
-}
-
-output "private_route_table_id" {
-  value = module.vpc.private_route_table_id
-}
-
+##########################
+# IAM
+##########################
+# FIXED: IAM Role Name Output
 output "iam_role_name" {
-  value = module.iam.role_name
+  description = "Name of the IAM role for EC2"
+  value       = module.iam.ec2_role_name  # ✅ CORRECT OUTPUT NAME
 }
+
 
 output "iam_instance_profile_name" {
-  value = module.iam.instance_profile_name
+  description = "IAM Instance Profile name"
+  value       = module.iam.instance_profile_name
 }
 
+##########################
+# RDS
+##########################
 # output "port" {
 #   value = module.rds.port
 # }
 
 output "address" {
-  value = module.rds.address
+  description = "RDS endpoint address"
+  value       = module.rds.address
 }

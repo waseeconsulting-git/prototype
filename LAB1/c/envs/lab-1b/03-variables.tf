@@ -22,7 +22,7 @@ variable "vpc_cidr_block" {
 variable "env_prefix" {
   description = "project environment"
   type = string
-  default = "lab-1b"
+  #default = "lab-1b"
 
   validation {
     condition = contains(["lab-1a", "lab-1b", "lab-1c"], var.env_prefix)
@@ -72,20 +72,25 @@ variable "instance_type" {
   description = "The type of EC2 instance to launch"
 } 
 
-variable "db_name" {
+variable "dbname" {
   description = "Initial database name."
   type        = string
 }
 
-variable "db_username" {
+variable "username" {
   description = "DB master username (students should use Secrets Manager in 1B/1C)."
   type        = string
 }
 
-variable "db_password" {
+variable "password" {
   description = "DB master password (DO NOT hardcode in real life; for lab only)."
   type        = string
   sensitive   = true
+}
+
+variable "port" {
+  description = "Access port to the RDS DB"
+  type = number
 }
 
 
@@ -105,4 +110,17 @@ variable "enable_kms_endpoint" {
   description = "Enable KMS VPC endpoint"
   type        = bool
   default     = false
+}
+
+#variable "address" {
+#description = "The hostname of the RDS instance"
+#  type = string
+#}
+
+variable "existing_secret_arn" {
+  type = string
+}
+
+variable "existing_secret_name" {
+  type = string
 }

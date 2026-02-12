@@ -71,16 +71,17 @@ resource "aws_vpc_endpoint" "logs" {
 
 # S3 Gateway Endpoint (for package installs, CloudWatch logs, etc.)
 resource "aws_vpc_endpoint" "s3" {
-  for_each          = toset(var.route_table_ids)
+  count             = length(var.route_table_ids)
   vpc_id            = var.vpc_id
   service_name      = "com.amazonaws.${var.region}.s3"
+  route_table_ids   = [var.route_table_ids[count.index]]
   vpc_endpoint_type = "Gateway"
-  route_table_ids   = [each.value]
 
   tags = merge(var.tags, {
-    Name = "${var.env_prefix}-s3-endpoint-${each.key}"
+    Name = "${var.env_prefix}-s3-endpoint-${count.index}"
   })
 }
+
 
 # Optional: KMS endpoint
 resource "aws_vpc_endpoint" "kms" {
